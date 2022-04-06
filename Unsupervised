@@ -1,0 +1,20 @@
+# Optimal k using Total Within Sum of Squares (elbow plot)
+install.packages("factoextra")
+library(factoextra)
+fviz_nbclust(y, kmeans, method = "wss")
+# Optimal 7 clusters
+
+#calculate gap statistic based on number of clusters
+gap_stat <- clusGap(y,
+                    FUN = kmeans,
+                    nstart = 25,
+                    K.max = 100,
+                    B = 50)
+
+fviz_gap_stat(gap_stat)
+
+
+# Plot
+km7 <- kmeans(y, centers = 7, nstart = 25)
+fviz_cluster(km7, data = y)
+km7
