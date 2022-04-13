@@ -27,13 +27,18 @@ folds <- sample(1:k, n, replace=TRUE)
 # ====================================================================================
 
 # Initialize vector to store misclassification rates and lambdas for varying alpha levels 
-alphas <- seq(from = 0, to = 1, by = 0.01)
-lambdas <- rep(0, length(alphas))
+alphas <- seq(from = 0, to = 1, by = 0.01)  # weighting parameter for L1 and L2 penalties
+lambdas <- rep(0, length(alphas))           # shrinkage parameter
 net_error_rates <- rep(0, length(alphas))
 
 # Iterate over the alpha values, finding the lambda that minimizes error rate
 for (i in 1:length(alphas)) {
-  cv.net <- cv.glmnet(xtrain, y, alpha = alphas[i], family = "binomial", foldid = folds,  type.measure = 'class')
+  cv.net <- cv.glmnet(xtrain, y,
+                      alpha = alphas[i],
+                      family = "binomial",
+                      foldid = folds,
+                      type.measure = 'class')
+  
   lambdas[i] <- cv.net$lambda.min
   net_error_rates[i] <- mean((predict(cv.net, xtrain, type = 'class', s = cv.net$lambda.min) != y))
 }
@@ -89,7 +94,6 @@ plot(cv.lasso)
 plot(cv.net)
 plot(cv.ridge)
 
-
 # Compile fitted models into a list
 models <- list(cv.lasso,
                cv.net,
@@ -99,10 +103,15 @@ models <- list(cv.lasso,
 # Estimate the test error for each fitted model using 10-fold CV
 # ====================================================================================
 
-# Lasso logistic regression
+# Initialize vectors to store the CV errors for each fold
 lasso.fold.errors <- rep(0,k)
-    
+net.fold.errors <- rep(0,k)
+ridge.fold.errors <- rep(0,k)
+
+# K-fold cross validation loop
 for (j in 1:k) {
+  
+  # Lasso logistic regression
   lasso <- glmnet(xtrain[folds != j,], y[folds != j],
                   family = "binomial", alpha = 1, lambda = cv.lasso$lambda.min)
       
@@ -110,15 +119,9 @@ for (j in 1:k) {
                       s = cv.lasso$lambda.min, type = 'class')
       
   lasso.fold.errors[j] <- sum(lasso.pred != y[folds==j])
-}
+  lasso.cv.error <- sum(lasso.fold.errors)/n 
 
-lasso.test.error <- sum(lasso.fold.errors)/n
-lasso.test.error
-
-# Elastic net logistic regression
-net.fold.errors <- rep(0,k)
-
-for (j in 1:k) {
+  # Elastic net logistic regression
   net <- glmnet(xtrain[folds != j,], y[folds != j],
                 family = "binomial", alpha = filter, lambda = cv.net$lambda.min)
   
@@ -126,15 +129,9 @@ for (j in 1:k) {
                       s = cv.net$lambda.min, type = 'class')
   
   net.fold.errors[j] <- sum(net.pred != y[folds==j])
-}
+  net.cv.error <- sum(net.fold.errors)/n
 
-net.test.error <- sum(net.fold.errors)/n
-net.test.error    
-
-# Ridge logistic regression
-ridge.fold.errors <- rep(0,k)
-
-for (j in 1:k) {
+  # Ridge logistic regression
   ridge <- glmnet(xtrain[folds != j,], y[folds != j],
                   family = "binomial", alpha = 0, lambda = cv.ridge$lambda.min)
   
@@ -142,16 +139,16 @@ for (j in 1:k) {
                         s = cv.ridge$lambda.min, type = 'class')
   
   ridge.fold.errors[j] <- sum(ridge.pred != y[folds==j])
+  ridge.cv.error <- sum(ridge.fold.errors)/n
+  
 }
 
-ridge.test.error <- sum(ridge.fold.errors)/n
-ridge.test.error   
-
 # Combine the estimated test errors into a vector
-test.errors <- c(lasso.test.error, net.test.error, ridge.test.error)
-names(test.errors) <- c('Lasso','Net','Ridge')
+cv.errors <- c(lasso.cv.error, net.cv.error, ridge.cv.error)
+names(cv.errors) <- c('Lasso','Net','Ridge')
 
 # Combine the training and test errors together for comparison
-errors_matrix <- cbind(training.errors, test.errors)
+errors_matrix <- cbind(training.errors, cv.errors)
+colnames(errors_matrix) <- c("Training Error","CV Error")
 errors_matrix
      

@@ -18,22 +18,16 @@ split <- sample(c(TRUE,FALSE), nrow(dataset), replace = TRUE, prob = c(0.8, 0.2)
 train_set <- dataset[split, ]
 test_set <- dataset[!split, ]
 
+
 # Fit a random forest to the data
-fit <- randomForest(y ~ . ,data = train_set, ntree = 10000)
-fit$err.rate[10000]
+fit <- randomForest(y = dataset[, 1],
+                    x = dataset[,-1],
+                    ntree = 10000)
 
-# Test the random forest performance on a test set (might not be necessary)
-pred <- predict(fit, test_set[, 2:501])
-# CHECK THIS!!! misclass_rate <- sum(test_set[, 1] == pred) / length(test_set)
+# Calculate the training error rate
+oob_error_rate <- fit$err.rate[10000]
 
-oob.err <- rep(0, 500)
-test.err <- rep(0, 500)
-  
-for(mtry in 1:500){
-  fit <- randomForest(y ~ . ,data = train_set, mtry = mtry, ntree = 400)
-  oob.err[mtry] <- fit$mse[400]
-  pred <- predict(fit, Boston[-train, ])
-  test.err[mtry] <- mean((Boston[-train, ]$medv-pred)^2)
-}
-
-
+# Plot the misclassification rates for all (black), 0 (blue), and 1 (red)
+plot(1:nrow(fit$err.rate), fit$err.rate[ ,3], type = "l", col = 'red')
+lines(1:nrow(fit$err.rate), fit$err.rate[ ,2], col = 'blue')
+lines(1:nrow(fit$err.rate), fit$err.rate[ ,1], col = 'black')
