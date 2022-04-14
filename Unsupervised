@@ -19,11 +19,21 @@ pr.var
 pve=pr.var/sum(pr.var)
 pve
 
-# Create plot of PVE 
-plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained", ylim=c(0,1), type='b')
-# Create cumulative PVE to find the elbow or cut-off threshold
-plot(cumsum(pve), xlab="Principal Component", ylab="Cumulative Proportio plained", ylim=c(0,1), type='b')
+#Plot of points for 2 components
+Cols=function(vec){
+  cols=rainbow(length(unique(vec)))
+  return(cols[as.numeric(as.factor(vec))])
+}
+par(mfrow=c(1,2))
+plot(pca.out$x[,1:2], col=Cols(y), pch=19,xlab="Z1",ylab="Z2")
+plot(pca.out$x[,c(1,3)], col=Cols(y), pch=19,xlab="Z1",ylab="Z3")
+
+# Create plot of PVE and cumulative PVE
+par(mfrow=c(1,2))
+plot(pve,  type="o", ylab="PVE", xlab="Principal Component", col="blue")
+plot(cumsum(pve), type="o", ylab="Cumulative PVE", xlab="Principal Component", col="brown3")
 cumsum(pve)
+
 
 
 
