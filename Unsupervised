@@ -1,3 +1,33 @@
+#Dimension of data (1000x784)
+dim(y)
+# Calculate column means
+apply(y, 2, mean) 
+# Calculate column variance
+apply(y, 2, var)
+
+#Perform PCA
+pca.out=prcomp(y, scale=TRUE)
+# 784 principal components
+pca.out
+# Biplot
+biplot(pca.out, scale=0)
+
+#Proportion of variance explained
+pca.out$sdev
+pr.var=pca.out$sdev^2
+pr.var
+pve=pr.var/sum(pr.var)
+pve
+
+# Create plot of PVE 
+plot(pve, xlab="Principal Component", ylab="Proportion of Variance Explained", ylim=c(0,1), type='b')
+# Create cumulative PVE to find the elbow or cut-off threshold
+plot(cumsum(pve), xlab="Principal Component", ylab="Cumulative Proportio plained", ylim=c(0,1), type='b')
+cumsum(pve)
+
+
+
+
 # Optimal k using Total Within Sum of Squares (elbow plot)
 install.packages("factoextra")
 library(factoextra)
