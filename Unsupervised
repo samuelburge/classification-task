@@ -33,7 +33,7 @@ par(mfrow=c(1,2))
 plot(pve,  type="o", ylab="PVE", xlab="Principal Component", col="blue")
 plot(cumsum(pve), type="o", ylab="Cumulative PVE", xlab="Principal Component", col="brown3")
 cumsum(pve)
-
+#Cut-off: 90%:187 95%:250 99%:382
 
 
 
