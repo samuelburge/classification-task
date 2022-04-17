@@ -13,12 +13,6 @@ dataset <- data.frame(y = as.factor(y), x)
 tail(dataset)[ ,1:10] # take a peek to make sure it is right
 str(dataset)
 
-# Partition the data set into training and test sets
-split <- sample(c(TRUE,FALSE), nrow(dataset), replace = TRUE, prob = c(0.8, 0.2))
-train_set <- dataset[split, ]
-test_set <- dataset[!split, ]
-
-
 # Fit a random forest to the data
 fit <- randomForest(y = dataset[, 1],
                     x = dataset[,-1],
@@ -28,6 +22,7 @@ fit <- randomForest(y = dataset[, 1],
 oob_error_rate <- fit$err.rate[10000]
 
 # Plot the misclassification rates for all (black), 0 (blue), and 1 (red)
-plot(1:nrow(fit$err.rate), fit$err.rate[ ,3], type = "l", col = 'red')
+plot(1:nrow(fit$err.rate), fit$err.rate[ ,3], type = "l", col = 'red',
+     xlab = 'Trees', ylab = 'Misclassification Rate')
 lines(1:nrow(fit$err.rate), fit$err.rate[ ,2], col = 'blue')
 lines(1:nrow(fit$err.rate), fit$err.rate[ ,1], col = 'black')
