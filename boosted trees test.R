@@ -20,7 +20,7 @@ set.seed(639)
 interactionDepthVector = c(1, 2, 3, 4, 5)       # depth of the trees
 shrinkageVector = seq(0.001, 0.01, 0.005)         # learning rate
 bagFractionVector = seq(from = 0.2, to = 0.7, by = 0.1)          # number of obs. to use in training
-bootStraps <- 1
+bootStraps <- 6
 
 #Initialize Results DataFrames
 
@@ -50,9 +50,9 @@ for (b in 1:bootStraps){
           boost.inner=gbm(y~.,data=innerSplit,
                           distribution="bernoulli",
                           n.trees=10000,
-                          shrinkage=0.001,
-                          interaction.depth=i,
-                          bag.fraction=k,
+                          shrinkage=shrinkageVector[j],
+                          interaction.depth=interactionDepthVector[i],
+                          bag.fraction=bagFractionVector[k],
                           cv.fold=20)
           boost.inner.cvtrees<-gbm.perf(boost.inner, method = "cv")
           boost.outer.pred=predict(boost.inner,
@@ -66,11 +66,20 @@ for (b in 1:bootStraps){
 
           responseVector<-boost.inner.pred>=0.5
           accuracy<-(nrow(outerSplit)-sum(abs(responseVector-outerSplit$y)))/nrow(outerSplit)
-          strapResult<-c(b,i,j,k,boost.inner.cvtrees,accuracy,bootstrapID)
+          strapResult<-c(b,interactionDepthVector[i],shrinkageVector[j],
+                         bagFractionVector[k],boost.inner.cvtrees,accuracy,bootstrapID)
           resultsDataFrame<-rbind(resultsDataFrame,strapResult)
+          print(paste(i,j,k,b,'complete'))
 }
             }}}
 
 
 colnames(resultsDataFrame) <- names
 resultsDataFrame
+
+summary = resultsDataFrame %>%
+  group_by(bootstrapID) %>%
+  summarize(meanAccuracy = mean(validationAccuracy)) %>%
+  arrange(meanAccuracy, desc=TRUE)
+  print(n=60)
+
