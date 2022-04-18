@@ -48,15 +48,15 @@ data <- xgb.DMatrix(data = as.matrix(x), label = y)
  
 fit  <- xgb.cv(data = data,
                objective = "binary:logistic",  # "binary:logistic" for logistic regression
-               metrics = c('error', 'auc'),
+               metrics = c('auc', 'error'),
        
               params = list(booster = 'gbtree',
                        subsample = 0.5,   # The number of obs. randomly selected for training iter.
-                       eta = 0.05,        # Learning rate
-                       max_depth = 6),    # Max. depth of each tree iteration
+                       eta = 0.01,        # Learning rate
+                       max_depth = 2),    # Max. depth of each tree iteration
        
               nround = 10000,                  # max number of boosting iterations
-              nfold = 5,                       # number of cross-validation folds
+              nfold = 10,                      # number of cross-validation folds
               early_stopping_rounds = 1000)    # stop boosting after k number of iteration with no improvement
 
 # The lowest score for the 'test_error_mean' is the CV score

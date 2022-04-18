@@ -7,6 +7,16 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+require(factoextra)
+require(cluster)
+require(NbClust)
+require(dbscan)
+
+# Set working directory and import the data file
+setwd("C:\\Users\\SamBu\\Desktop\\STAT 639")
+load("cluster_data.RData")
+
 ```
 
 # Supervised Learning Task
@@ -21,13 +31,7 @@ summary(cars)
 
 ## Methodology
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+...
 
 ## Results
 
@@ -35,11 +39,37 @@ We can put a description of the results, like a table of the average training an
 
 # Unsupervised Learning Task
 
-Text here.
+## Pre-processing
+For the unsupervised learning task, we initially looked at performing principal components analysis (PCA) to reduce the number of dimensions in the data set. The results produced principal components that did not significantly reduce the feature space while simultaneously retaining a large portion of the information (or rather the variance) from the original data. The two scree plots below show that the number of principal components we would have to use to capture at least 90% of the variation in the data set was about 187, which did not seem beneficial enough to consider for the analysis. Therefore, we decided to retain all the original features in the data set.
 
 ```{r pca, echo=FALSE}
-plot(pressure)
-```
+# Calculate the principal components
+y.pca <- prcomp(y, scale = TRUE, center = TRUE)
 
+# Compute the proportion of variance explained (PVE)
+pr.var <- (y.pca$sdev)^2
+pve <- pr.var / sum(pr.var)
+
+# See at which principal component(s) we have 90%+ of the cum. variance explained
+cume.pve <- cumsum(pve)
+
+# Plot the two plots side-by-side
+par(mfrow=c(1,2))
+
+# Scree plot
+plot(pve, ylim = c(0,1), type = 'l', col = 'blue',
+     xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained")
+
+# Cumulative scree plot
+plot(cumsum(pve), type = 'l', col = 'blue',
+     xlab="Principal Component",
+     ylab=NA)
+
+
+```
+## Methodology
+
+Since the given data does not have any contextual basis for selecting the number of clusters $K$, we need one or more criteria to determine the number of clusters. Several well-known and widely used approaches include the elbow method, the silhouette method, and more recently the use of the gap statistic.
 
 # References
