@@ -372,7 +372,8 @@ colnames(errors_matrix) <- c("Avg. Training Error","Est. Test Error")
 # Print the results
 errors_matrix
 
-
+# Save it so when we finally it all together we don't have to do it again.
+save.image('results.RData')
 
 
 # ===================================================================================
@@ -383,6 +384,84 @@ errors_matrix
 setwd("C:\\Users\\SamBu\\Desktop\\STAT 639")
 load("cluster_data.RData")
 
+# ============================================================================
+#                Principal component analysis of the data set
+# ============================================================================
+y.pca <- prcomp(y, scale = TRUE, center = TRUE)
+names(y.pca)
+y.pca$x
+
+# Compute the proportion of variance explained (PVE)
+y.pca$sdev
+pr.var <- (y.pca$sdev)^2
+pr.var
+
+pve <- pr.var / sum(pr.var)
+round(pve, 4)
+
+# Scree plot
+plot(pve, ylim = c(0,1), type = 'b',
+     xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained")
+
+# Cumulative scree plot
+plot(cumsum(pve), type = 'b',
+     xlab="Principal Component",
+     ylab="Cumulative Proportion of Variance Explained")
+
+# See at which principal component(s) we have 90%+ of the cum. variance explained
+cume.pve <- cumsum(pve)
+
+#Cut-off: 90%:187 95%:250 99%:382
+newdata <- y.pca$x[ ,1:187]
+
+# ============================================================================
+#                         K-Means Clustering Algorithm
+# ============================================================================
+
+# Code that plots the total within-cluster sum of squares, silhouettes, and
+# gap statistics which can be used to choose an good number of clusters
+
+kmean.gap <- fviz_nbclust(y, kmeans, method = "gap_stat",
+                          k.max = 25, iter.max = 50, nstart = 25)
+
+kmean.sil <- fviz_nbclust(y, kmeans, method = "silhouette",
+                          k.max = 25, iter.max = 50, nstart = 25)
+
+kmean.wss <- fviz_nbclust(y, kmeans, method = "wss",
+                          k.max = 25, iter.max = 50, nstart = 25)
+
+# After selecting the number of clusters we will use, re-run the k-means
+km7 <- kmeans(y, centers = 7, nstart = 25)
+
+# Plot the clusters (might want to look other ways of doing this)
+fviz_cluster(km7, data = y)
+km7
+
+# ============================================================================
+#                      Hierarchical Clustering Algorithm
+# ============================================================================
+
+# Use the original data
+hc.complete <- hclust(dist(y), method = "complete")
+plt <- plot(hc.complete, labels = FALSE)
+
+hc.single <- hclust(dist(y), method = "single")
+plot(hc.single)
+
+hc.average <- hclust(dist(y), method = "average")
+plot(hc.average)
+
+hclust.wss <- fviz_nbclust(y, FUN = hcut, method = "wss",
+                           k.max = 25, nstart = 25)
+
+hclust.sil <- fviz_nbclust(y, FUN = hcut, method = "silhouette",
+                           k.max = 25, nstart = 25)
+
+hclust.gap <- fviz_nbclust(y, FUN = hcut, method = "gap_stat",
+                           k.max = 25, nstart = 25)
+
+barplot(table(hc.cut))
 
 
 

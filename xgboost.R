@@ -9,56 +9,76 @@ set.seed(639)
 # Coerce data vector to matrix, calculate training sample size, and create folds
 k <- 10
 folds <- sample(1:k, length(y), replace = TRUE)
-train_err <- rep(0, k)
-test_err <- rep(0, k)
+boost.train.errors <- rep(0, k)
+boost.test.errors <- rep(0, k)
+boost.tuning.params <- cbind(fold = seq(1:k),
+                             subsample = rep(0, 10),
+                             max_depth = rep(0,10),
+                             eta = rep(0, 10),
+                             nrounds = rep(0, 10))
 
-for (i in 1:k) {
+grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
+                           max_depth = c(1, 2, 3, 4, 5),
+                           eta = seq(0.001, 0.01, 0.005),
+                           best_iteration = 0,
+                           test_error_mean = 0)
+
+for (j in 1:k) {
   
   # Convert the training and test sets of each fold into a data matrix (DMatrix)
-  train <- xgb.DMatrix(data = as.matrix(x[folds != i, ]), label = y[folds != i])
-  test <- xgb.DMatrix(data = as.matrix(x[folds == i, ]), label = y[folds == i])
+  train <- xgb.DMatrix(data = as.matrix(x[folds != j, ]), label = y[folds != j])
+  test <- xgb.DMatrix(data = as.matrix(x[folds == j, ]), label = y[folds == j])
+  best_iteration <- rep(0, nrow(grid_search))
+  
+  for (i in 1:nrow(grid_search)) {
+  inner_fit <- xgb.cv(data = train,
+                      objective = "binary:logistic",  # "binary:logistic" for logistic regression
+                      metrics = c('error'),
+               
+                      params = list(booster = 'gbtree',
+                                    subsample = grid_search[i, 'subsample'],
+                                    eta = grid_search[i, 'eta'],
+                                    max_depth = grid_search[i, 'max_depth']),
+               
+                 nrounds = 10000,              # max number of boosting iterations
+                 early_stopping_rounds = 150,  # stop boosting after x iterations with no improvement
+                 nfold = 5)
+  
+  # Store the results for each combination of tuning parameters and the associated performance
+  grid_search[i, 'best_iteration'] = inner_fit$best_iteration
+  grid_search[i, 'test_error_mean'] = inner_fit$evaluation_log[inner_fit$best_iteration, 'test_error_mean']
+  }
+  
+  boost.tuning.params[j, 'subsample'] <- grid_search[which.min(grid_search$test_error_mean), 'subsample']
+  boost.tuning.params[j, 'eta'] <- grid_search[which.min(grid_search$test_error_mean), 'eta']
+  boost.tuning.params[j, 'max_depth'] <- grid_search[which.min(grid_search$test_error_mean), 'max_depth']
+  boost.tuning.params[j, 'nrounds'] <- grid_search[which.min(grid_search$test_error_mean), 'best_iteration']
   
   fit <- xgboost(data = train,
-               objective = "binary:logistic",  # "binary:logistic" for logistic regression
-               metrics = c('error', 'auc'),
-               
-               params = list(booster = 'gbtree',
-                             subsample = 0.5,   # The number of obs. randomly selected for training iter.
-                             eta = 0.05,        # Learning rate
-                             max_depth = 6),    # Max. depth of each tree iteration
-               
-               nround = 10000,                  # max number of boosting iterations
-               early_stopping_rounds = 100)     # stop boosting after k number of iteration with no improvement
+         objective = "binary:logistic",  # "binary:logistic" for logistic regression
+         metrics = c('error'),
+         
+         params = list(booster = 'gbtree',
+                       subsample = boost.tuning.params[j, 'subsample'],
+                       eta = boost.tuning.params[j, 'eta'],
+                       max_depth = boost.tuning.params[j, 'max_depth']),
+         
+         nrounds = boost.tuning.params[j, 'nrounds']) 
+
+  y_fit <- predict(fit, data.matrix(x[folds != j, ]))
+  boost.train.errors[j] <- sum((y_fit > 0.5) != y[folds != j]) / length(y[folds != j])
   
-  y_fit <- predict(fit, data.matrix(x[folds != i, ]))
-  train_err[i] <- sum((y_fit > 0.5) != y[folds != i]) / length(y[folds != i])
-  
-  y_pred <- predict(fit, data.matrix(x[folds == i, ]))
-  test_err[i] <- sum((y_pred > 0.5) != y[folds == i]) / length(y[folds == i])
+  y_pred <- predict(fit, data.matrix(x[folds == j, ]))
+  boost.test.errors[j] <- sum((y_pred > 0.5) != y[folds == j]) / length(y[folds == j])
   
 }
 
 # Print the training and test errors for each fold and calculate the CV score
-train_err
-test_err
-cv_score <- mean(test_err)
+boost.tuning.params
+boost.train.errors
+boost.test.errors
 
-# Alternatively, the built-in CV function be used as well to get error estimates.
-data <- xgb.DMatrix(data = as.matrix(x), label = y)
- 
-fit  <- xgb.cv(data = data,
-               objective = "binary:logistic",  # "binary:logistic" for logistic regression
-               metrics = c('auc', 'error'),
-       
-              params = list(booster = 'gbtree',
-                       subsample = 0.5,   # The number of obs. randomly selected for training iter.
-                       eta = 0.01,        # Learning rate
-                       max_depth = 2),    # Max. depth of each tree iteration
-       
-              nround = 10000,                  # max number of boosting iterations
-              nfold = 10,                      # number of cross-validation folds
-              early_stopping_rounds = 1000)    # stop boosting after k number of iteration with no improvement
+boost.train.error <- mean(boost.train.errors)
+boost.cv.error <- mean(test_err)
 
-# The lowest score for the 'test_error_mean' is the CV score
-fit$evaluation_log
-  
+save.image('xgboost.RData')
