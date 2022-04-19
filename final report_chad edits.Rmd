@@ -131,6 +131,9 @@ grid.arrange(kmean.sil + ylab("Avg. Silhouette") + ggtitle("") + xlab("") +
              hclust.gap + ylab("") + ggtitle(""),
              nrow = 3, ncol = 2)
 ```
+## Results
+
+We decided on K=7 clusters as it was the most consistent with our graphs for selecting K. The graphs suggested another optimal K clusters of around 14, but we ultimately decided on 7 to keep interpritability. The results of the K-Means and Hierarchical Clustering methods are depicted in the bargraphs below. K-Means grouped the data into relatively equal sized clusters, with cluster 2 having slightly more observations. Hierarchical Clustering resulted in the majority of our data falling into cluster 2, which was consistent with the dendrogram for complete linkage hierarchical cluster. Because of the high-dimensionality of our data, it's hard to effectively visualize these clusters which was the basis for our decision to use a bar graph. 
 
 ```{r final_cluster_barplots, echo = FALSE, out.height = '50%'}
 
