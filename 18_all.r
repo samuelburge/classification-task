@@ -589,6 +589,6 @@ save.image('clustering_results.RData')
 bar.kmeans <- barplot(table(km7$cluster), 
           main='Distribution of K-Means Clusters', ylab="Frequency", xlab="Cluster")
 bar.hierarch <- barplot(table(hcut7),
-          main='Distribution of K-Means Clusters', ylab="Frequency", xlab="Cluster")
+          main='Distribution of Hierarchical Clusters', ylab="Frequency", xlab="Cluster")
 
 
