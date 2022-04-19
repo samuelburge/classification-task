@@ -355,7 +355,7 @@ randforest_error_rate <- fit$err.rate[10000]
      naive.train.error <- mean(naive.train.errors)
  radialSVM.train.error <- mean(radialSVM.train.errors)
    polySVM.train.error <- mean(polySVM.train.errors)
-randforest.train.error <- 0
+randforest.train.error <- NA
      boost.train.error <- mean(boost.train.errors)
 
 # Compute the average validation error
@@ -389,7 +389,7 @@ colnames(errors_matrix) <- c("Avg. Training Error","Est. Test Error")
 errors_matrix
 
 # Save it so when we finally it all together we don't have to do it again.
-save.image('cv_results.RData')
+save.image('cv_final_results.RData')
 
 # ===================================================================================
 #   Re-train the best algorithm on whole training set and compute our predictions
@@ -398,7 +398,6 @@ save.image('cv_results.RData')
 # Re-train the model on the entire data set
 
 # ...
-
 
 # Save the test predictions and the estimated test error
 #save(ynew, test_error, file="18.RData")

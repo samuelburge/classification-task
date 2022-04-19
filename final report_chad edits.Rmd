@@ -30,6 +30,7 @@ require(gbm)
 
 # Set table options for pdf output
 options(knitr.table.format = "latex")
+load('cv_final_results.RData')
 ```
 
 # Classification Task
