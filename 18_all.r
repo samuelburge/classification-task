@@ -388,9 +388,8 @@ colnames(errors_matrix) <- c("Avg. Training Error","Est. Test Error")
 # Print the results
 errors_matrix
 
-# Save it so when we finally it all together we don't have to do it again.
-save.image('cv_final_results.RData')
 
+# Create a nice box plot to visaulize the variation between folds
 foldErrors <- data.frame(boost.fold.errors,lasso.fold.errors,net.fold.errors,
                          ridge.fold.errors,naive.fold.errors,radialSVM.fold.errors,polySVM.fold.errors)
 
@@ -454,6 +453,9 @@ best_fit <- xgboost(data = data,
                     
                     nrounds = boost.tuning.params[j, 'nrounds'])
 
+importance_matrix <- xgb.importance(colnames(data), model = best_fit)
+xgb.ggplot.importance(importance_matrix, rel_to_first = TRUE, xlab = "Relative importance")
+
 # Generate predictions on the test set
 ynew <- predict(best_fit, data.matrix(xnew))
 
@@ -462,6 +464,9 @@ ynew <- as.numeric(ynew >= 0.5)
 
 # Save the test predictions and the estimated test error as specified
 save(ynew, test_error, file = "18.RData")
+
+# Save it so when we finally it all together we don't have to do it again.
+save.image('cv_final_results.RData')
 
 # ===================================================================================
 #                                  CLUSTERING TASK

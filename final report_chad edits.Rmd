@@ -38,11 +38,11 @@ options(knitr.table.format = "latex")
 
 For the classification task we approached the problem with a spread of well-known classification algorithms. This included the Naive Bayes classifier, regularized logistic regression (specifically ridge, lasso and elastic net regularization), gradient boosted trees, random forests and support vector machines (using radial and polynomial kernels). For model selection and assessment, we utilized 10-fold cross-validation and, with some algorithms, another nested cross-validation to select tuning hyper-parameter using a grid search. Nested cross-validation is a well-known approach to handling both tuning and assessment of models with hyper-parameters, and we opted to employ this approach to avoid potential over-fitting and bias introduced when the same data used to validate the models is also included in hyper-parameter optimization [@cawley].
 
-The only classifier we used that was in covered in the course was the regularized version of the logistic regression model. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated suggesting the best linear method might be logistic regression. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. The elastic net regularization simply uses a weighted penalty term $\lambda [ (1 - \alpha)\ || \beta ||^2_2\ /\ 2 + \alpha || \beta ||_{1} ]$ in the objective function, and requires that both tuning parameters $\lambda$ and $\alpha$ be selected (which we used nested cross-validation to determine). The lasso and ridge regularization can be viewed as special cases of the elastic net procedure where $\alpha = 1$ and $\alpha = 0$, respectively. We searched for the best tuning parameters $0 \le \alpha \le 1$ in increments of 0.05 and found that lasso regularization yielded the best performance in this category of classifiers.
+The only classifier we used that was in covered in the course was the regularized version of the logistic regression model. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated suggesting the best linear method might be logistic regression. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. We also opted to use a different boosting algorithm for the classification trees, XGBoost, compared to the algorithms found in R's gbm package. This was primarily due to the computational resources necessary to perform nested cross-validations, as XGBoost is known for it's impressive predictive performance and computational efficiency [@xgboost]. 
 
 ## Results
 
-The results of our analysis are depicted in the table below. Note the degree to which some classifiers, such as ridge logistic regression, under-performed during the assessment despite a low training error, on average. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%.
+The results of our analysis are depicted in the table below. Note the degree to which some classifiers, such as ridge logistic regression, under-performed during the assessment despite a low training error, on average. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%. After re-fitting the final model using the same grid search procedure, our model's tuning parameters were an 80% subsample ratio the training instances, a learning rate (shrinkage penalty) of 0.001 ,and a max interaction depth for each tree of 4. These tuning parameters were selected primarily to help us avoid over-fitting the model given the large amount of flexibility these algorithms can provide if left unchecked.
 
 ```{r fold-errors-plot, echo = FALSE}
 foldErrors <- data.frame(boost.fold.errors,lasso.fold.errors,net.fold.errors,
@@ -53,12 +53,12 @@ colnames(foldErrors) <- c('Boosted Trees','Lasso','E.Net','Ridge',
                           'N.Bayes','Radial SVM','Poly SVM','R. Forest')
 
 boxplot(foldErrors, xlab='Model',
-        ylab='CV Fold Error Rate', main='Model Comparison')
+        ylab='CV Fold Misclassification Rates', main='Model Comparison')
 
 ```
 
 ```{r results-table, echo = FALSE}
-errors.matrix <- cbind(train.errors, cv.errors)
+errors.matrix <- round(cbind(train.errors, cv.errors), 2)
 colnames(errors.matrix) <- c('Train Error', 'Estimated Test Error')
 
 kableExtra::kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
@@ -68,8 +68,6 @@ kableExtra::kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', '
   column_spec(1, bold = TRUE) %>%
   column_spec(2:7, width = "2in", )
 ```
-
-
 
 # Clustering Task
 
