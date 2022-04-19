@@ -12,7 +12,7 @@ fontsize: 12pt
 ```{r setup, include=FALSE}
 # Set working directory
 setwd("C:\\Users\\SamBu\\Documents\\GitHub\\data-mining-project")
-load("cv_results.RData")
+load('cv_final_results.RData')
 
 # Import the necessary packages
 require(tidyverse)
@@ -30,7 +30,6 @@ require(gbm)
 
 # Set table options for pdf output
 options(knitr.table.format = "latex")
-load('cv_final_results.RData')
 ```
 
 # Classification Task
@@ -39,32 +38,26 @@ load('cv_final_results.RData')
 
 For the classification task we approached the problem with a spread of well-known classification algorithms. This included the Naive Bayes classifier, regularized logistic regression (specifically ridge, lasso and elastic net regularization), gradient boosted trees, random forests and support vector machines (using radial and polynomial kernels). For model selection and assessment, we utilized 10-fold cross-validation and, with some algorithms, another nested cross-validation to select tuning hyper-parameter using a grid search. Nested cross-validation is a well-known approach to handling both tuning and assessment of models with hyper-parameters, and we opted to employ this approach to avoid potential over-fitting and bias introduced when the same data used to validate the models is also included in hyper-parameter optimization [@cawley].
 
-### Regularized Logistic Regression
-
-We first verified that our assumptions, which validates logistic regression as a methodology, were satisfied. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. The elastic net regularization simply uses the penalty term
-
-$$ \lambda \Big(\ (1 - \alpha)\ || \beta ||^2_2\ /\ 2 + \alpha || \beta ||_1 \Big)$$
-in the objective function, and requires that both tuning parameters $\lambda$ and $\alpha$ be selected (which we used nested cross-validation to determine). The lasso and ridge regularization can be viewed as special cases of the elastic net procedure where $\alpha = 1$ and $\alpha = 0$, respectively. We searched for the best tuning parameters $0 \le \alpha \le 1$ in increments of 0.05 and found that lasso regularization yielded the best performance in this category of classifiers.
+The only classifier we used that was in covered in the course was the regularized version of the logistic regression model. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated suggesting the best linear method might be logistic regression. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. The elastic net regularization simply uses a weighted penalty term $\lambda [ (1 - \alpha)\ || \beta ||^2_2\ /\ 2 + \alpha || \beta ||_{1} ]$ in the objective function, and requires that both tuning parameters $\lambda$ and $\alpha$ be selected (which we used nested cross-validation to determine). The lasso and ridge regularization can be viewed as special cases of the elastic net procedure where $\alpha = 1$ and $\alpha = 0$, respectively. We searched for the best tuning parameters $0 \le \alpha \le 1$ in increments of 0.05 and found that lasso regularization yielded the best performance in this category of classifiers.
 
 ## Results
 
 The results of our analysis are depicted in the table below. Note the degree to which some classifiers, such as ridge logistic regression, under-performed during the assessment despite a low training error, on average. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%.
 
 ```{r fold-errors-plot, echo = FALSE}
-#ggplot(data = cv_data, aes(x = fold, y = fold.errors, color = method)) +
-  #geom_line() +
-  #xlab('Cross-validation Fold') +
-  #ylab('Misclassification Rate') +
-  #theme_classic()
+
+# Insert box and whiskers plot here!
+
 ```
 
 ```{r results-table, echo = FALSE}
 errors.matrix <- cbind(train.errors, cv.errors)
 colnames(errors.matrix) <- c('Train Error', 'Estimated Test Error')
 
-kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
+kableExtra::kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
       col.names = c('Training Error', 'Est. Test Error'),
       caption = "Results from 10-fold cross-validation to assess model generalization performance.") %>%
+  kable_styling(latex_options = 'hold_position') %>%
   column_spec(1, bold = TRUE) %>%
   column_spec(2:7, width = "2in", )
 ```
@@ -118,7 +111,17 @@ plot(cumsum(pve), type = 'l', col = 'blue',
 
 We opted to use k-means and hierarchical clustering, in part because the high-dimensional data is intractable with DBSCAN and due to computing restraints. Since the given data does not have any contextual basis for selecting the number of clusters $K$, we need one or more criteria to determine the number of clusters. Several well-known and widely used approaches include the elbow method, the silhouette method [@rousseeuw], and more recently the use of the gap statistic [@tibshirani].
 
-```{r cluster_graphs, echo = FALSE}
+```{r k_selection_plots, echo = FALSE}
+# Specify how the plots will be output
+par(mfrow=c(2,3))
+
+# Insert wss, silhouette, and gap statistic plots here!
+
+```
+
+```{r final_cluster_barplots, echo = FALSE}
+
+# Insert bar plots of the groupings here!
 
 ```
 
