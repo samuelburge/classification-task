@@ -5,6 +5,8 @@ library(e1071)
 # Set working directory and import the data file
 setwd("C:\\Users\\SamBu\\Desktop\\STAT 639")
 load("class_data.RData")
+set.seed(639)
+
 dataset <- data.frame(y = as.factor(y), scale(x)) # required for SVM!
 n <- nrow(dataset)
 

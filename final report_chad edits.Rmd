@@ -3,31 +3,42 @@ title: "Final Report"
 author: "Samuel Burge, Chad Austgen, Skylar Liu"
 date: "April 19, 2022"
 output: pdf_document
+header-includes:
+    - \usepackage{setspace}\doublespacing
+bibliography: bibliography.bib
+fontsize: 12pt
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Set working directory
+setwd("C:\\Users\\SamBu\\Documents\\GitHub\\data-mining-project")
+load("cv_results.RData")
+
+# Import the necessary packages
+require(tidyverse)
+require(kableExtra)
+require(MASS)
+require(class)
+require(glmnet)
+require(ROCR)
+require(e1071)
+require(naivebayes)
+require(tree)
+require(randomForest)
+require(xgboost)
+require(gbm)
+
+# Set table options for pdf output
+options(knitr.table.format = "latex")
 ```
 
-# Supervised Learning Task
-
-For the supervised learning task we first attempted to approach the problem with as many probable solutions as possible. This included:
-
-- Regularized Logistic Regresion (Ridge, Lasso and Elastic Net)
-- Boosted Trees
-- Naive Bayes
-- Random Forest
-- Support Vector Machines with Radial and Polynomial Kernals
-
-We initially avoided some techniques such as support vector machines as our set of predictive variables was relatively large and this can cause the SVM method to run slowly. In this case however we did not find it so slow as to be prohibitive and so we pushed forward with it as a methodology.
-
-K-Nearest neighbors was rejected outright as its limitations for high-dimensional data make it very unsuitable for this task.
+# Classification Task
 
 ## Methodology
+For the classification task we approached the problem with a spread of well-known classification algorithms. This included the Naive Bayes classifier, regularized logistic regression (specifically ridge, lasso and elastic net regularization), gradient boosted trees, random forests and support vector machines (using radial and polynomial kernels). For model selection and assessment, we utilized 10-fold cross-validation and, with some algorithms, another nested cross-validation to select tuning hyper-parameter using a grid search. Nested cross-validation is a well-known approach to handling both tuning and assessment of models with hyper-parameters, and we opted to employ this approach to avoid potential over-fitting and bias introduced when the same data used to validate the models is also included in hyper-parameter optimization [@cawley].
 
-### Logistic Regression 
-
-We importantly verified our assumptions which validates logisitic regression as a methodology. Namely, before the analysis we created large plot matrices and visually verified across all predictors that X~Y were not well separated. 
+### Logistic Regression
+We first verified that our assumptions, which validates logistic regression as a methodology, were satisfied. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie].
 
 ```{r cars, echo=FALSE}
 firstColumn <- c(0.3201453,0.3201453,0.2016434,0.3783479)
@@ -38,27 +49,76 @@ row.names(logisticConfusionMatrix) <- c('Lasso','Net','Ridge','Naive Bayes')
 print(logisticConfusionMatrix)
 ```
 
-The results of our analysis are depicted in the table above. Of note is the degree to which Ridge under performs despite low training error. This is likely over fitting and we attribute this to high excess variance in the data set compared to bias. The Lasso and Net eliminate this variance by performing variable selection and eliminating many predictors.
+The results of our analysis are depicted in the table above. Note the degree to which ridge logistic regression under-performed during the assessment despite a low training error. This is likely over-fitting, and we attribute this to high excess variance in the data set compared to bias. The lasso and elastic net eliminate this variance by performing variable selection to eliminate predictors.
 
 ### Boosted Trees
+Boosted classification trees yielded the best results of all the algorithms we employed. In order to generate our results we used nested cross-validation method to perform a grid search over various shrinkage rates, bag inclusion, and interaction depths. We then compared the models with a withheld validation set. We found that as is common with validation set approaches there was significant variance in the accuracy of the model with respect to the validation set. In order to identify higher performing models we resampled repeatedly and fed the data into the cross validation trees algorithm and measured against a corresponding validation set. We chose our model manually using a slight bias toward models which were simpler and had less variance.
 
-Boosting provided the best results for us of any procedure. In order to generate our results we used a cross validation method which iterated over multiple values for shrinkage rate, bag inclusion, and interaction depth. We then compared the models with a withheld validation set. We found that as is common with validation set approaches there was significant variance in the accuracy of the model with respect to the validation set. In order to identify higher performing models we resampled repeatedly and fed the data into the cross validation trees algorithm and measured against a corresponding validation set. We chose our model manually using a slight bias toward models which were simpler and had less variance.
+## Results  
+We can put a description of the results, like a table of the average training and cross-validation errors, in this section. I was also thinking we could include ROC curves.  
+\  
 
-### Naive Bayes
+```{r results-table, echo = FALSE, }
+errors.matrix <- cbind(train.errors, cv.errors)
+colnames(errors.matrix) <- c('Train Error', 'Est. Test Error')
 
-A 10 fold cross validation was performed on the dataset. Specific results will be presented later, however the approach did not seem to be competitive with other methods and so it was discounted relatively early in the analysis.
-
-## Results
-
-We can put a description of the results, like a table of the average training and cross-validation errors, in this section. I was also thinking we could include ROC curves.
-
-# Unsupervised Learning Task
-
-Text here.
-
-```{r pca, echo=FALSE}
-plot(pressure)
+kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
+      col.names = c('Training Error', 'Est. Test Error'),
+      caption = "Results from 10-fold cross-validation to assess model generalization performance.") %>%
+  column_spec(1, bold = TRUE) %>%
+  column_spec(2:7, width = "2in", )
 ```
 
+
+# Clustering Task
+
+```{r clustering-setup, echo=FALSE, message=FALSE, include=FALSE}
+# Load the necessary packages for the clustering task
+require(factoextra)
+require(cluster)
+require(NbClust)
+require(dbscan)
+require(ggdendro)
+
+# Set working directory and import the data file
+load("cluster_data.RData")
+```
+
+## Pre-processing
+For the clustering task, we initially looked at performing principal components analysis (PCA) to reduce the number of dimensions in the data set. The two scree plots below show that the number of principal components necessary to capture at least 90% of the variation in the data set was about 187, which did not seem beneficial enough to consider for the analysis. Therefore, we decided to retain all the original features in the data set.
+
+```{r pca, echo=FALSE}
+
+# Calculate the principal components
+y.pca <- prcomp(y, scale = TRUE, center = TRUE)
+
+# Compute the proportion of variance explained (PVE)
+pr.var <- (y.pca$sdev)^2
+pve <- pr.var / sum(pr.var)
+
+# See at which principal component(s) we have 90%+ of the cum. variance explained
+cume.pve <- cumsum(pve)
+
+# Plot the two plots side-by-side
+par(mfrow=c(1,2))
+
+# Scree plot
+plot(pve, ylim = c(0,1), type = 'l', col = 'blue',
+     xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained")
+
+# Cumulative scree plot
+plot(cumsum(pve), type = 'l', col = 'blue',
+     xlab="Principal Component",
+     ylab=NA)
+```
+
+## Methodology
+
+We opted to use k-means and hierarchical clustering, in part because the high-dimensional data is intractable with DBSCAN and due to computing restraints. Since the given data does not have any contextual basis for selecting the number of clusters $K$, we need one or more criteria to determine the number of clusters. Several well-known and widely used approaches include the elbow method, the silhouette method [@rousseeuw], and more recently the use of the gap statistic [@tibshirani].
+
+```{r cluster_graphs, echo = FALSE}
+
+```
 
 # References

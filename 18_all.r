@@ -20,13 +20,6 @@ require(randomForest)
 require(xgboost)
 require(gbm)
 
-# Load the necessary packages for the clustering task
-require(factoextra)
-require(cluster)
-require(NbClust)
-require(dbscan)
-require(ggdendro)
-
 # ====================================================================================
 #                                CLASSIFICATION TASK
 # ====================================================================================
@@ -48,6 +41,12 @@ scaled_x <- scale(x, center = TRUE, scale = TRUE)
 # Combine the label and features into a single data set for some algorithms (SVMs)
 dataset <- data.frame(y = as.factor(y), scaled_x)
 
+# Coerce data vector to matrix, calculate training sample size, and create folds
+n <- nrow(x)
+k <- 10
+folds <- sample(1:k, n, replace=TRUE)
+
+
 # Create search grid of SVM tuning parameters for cross-validation testing
 cost_grid <- seq(0.01, 100, length.out = 15)  # cost for all kernels
 gamma_grid <- seq(0, 1, length.out = 15)      # gamma for all kernels
@@ -66,12 +65,6 @@ boost.tuning.params <- cbind(fold = seq(1:k),
                              max_depth = rep(0,10),
                              eta = rep(0, 10),
                              nrounds = rep(0, 10))
-
-
-# Coerce data vector to matrix, calculate training sample size, and create folds
-n <- nrow(x)
-k <- 10
-folds <- sample(1:k, n, replace=TRUE)
 
 # ====================================================================================
 #           Estimate the test error for each fitted model using 10-fold CV
@@ -208,118 +201,83 @@ for (j in 1:k) {
   # ====================================
   #      SVM with radial kernel
   # ====================================
-  
+
   # This will be used for the remaining SVM algorithms as well
   cv_train_set <- dataset[(folds != j), ]
   cv_test_set <- dataset[(folds == j), ]
-  
+
   # Inner cross-validation for tuning parameters
   # (The tune function will do inner cross-validation)
   tune.out <- tune( svm, y ~ ., data = cv_train_set,
-                    
+
                     kernel = "radial",
-                    
+
                     ranges = list(cost = cost_grid,
                                   gamma = gamma_grid),
-                    
+
                     tunecontrol = tune.control(sampling = "cross",
                                                cross = k,
                                                best.model = TRUE) )
-  
+
   # Output the best model from the hyper-parameter tuning inner CV
   params <- tune.out$best.parameters
-  
+
   radialSVM.train.errors[j] <- tune.out$best.performance
-  
+
   # Retrain the SVM on the full fold using the best cost value
   fit <- svm(y ~ ., data = cv_train_set,
-             
+
              kernel = 'radial',
-             
+
              cost = params$cost,
-             
+
              gamma = params$gamma)
-  
+
   # predict on the test set
   pred <- predict(fit, newdata = cv_test_set)
-  
+
   # Calculate the test error
   radialSVM.fold.errors[j] <- sum(pred != cv_test_set[ ,1]) / nrow(cv_test_set)
-  
+
   # ====================================
   #      SVM with poly. kernel
   # ====================================
-  
+
   # Inner cross-validation for tuning parameters
   # (I believe the tune function will do inner cross-validation)
   tune.out <- tune( svm, y ~ ., data = cv_train_set,
-                    
+
                     kernel = "polynomial",
-                    
+
                     ranges = list(cost = cost_grid,
                                   gamma = gamma_grid,
                                   degree = degree_grid),
-                    
+
                     tunecontrol = tune.control(sampling = "cross",
                                                cross = k,
                                                best.model = TRUE) )
-  
+
   # Output the best model from the hyper-parameter tuning inner CV
   params <- tune.out$best.parameters
-  
+
   polySVM.train.errors[j] <- tune.out$best.performance
-  
+
   # Retrain the SVM on the full fold using the best cost value
   fit <- svm(y ~ ., data = cv_train_set,
-             
+
              kernel = 'polynomial',
-             
+
              cost = params$cost,
-             
+
              gamma = params$gamma,
-             
+
              degree = params$degree )
-  
+
   # predict on the test set
   pred <- predict(fit, newdata = cv_test_set)
-  
+
   # Calculate the test error
   polySVM.fold.errors[j] <- sum(pred != cv_test_set[ ,1]) / nrow(cv_test_set)
-  
-  # ====================================
-  #      SVM with Sigmoid kernel
-  # ====================================
-  
-  tune.out <- tune( svm, y ~ ., data = cv_train_set,
-                    
-                    kernel = "sigmoid",
-                    
-                    ranges = list(cost = cost_grid,
-                                  gamma = gamma_grid),
-                    
-                    tunecontrol = tune.control(sampling = "cross",
-                                               cross = k,
-                                               best.model = TRUE) )
-  
-  # Output the best model from the hyper-parameter tuning inner CV
-  params <- tune.out$best.parameters
-  
-  sigmoidSVM.train.errors[j] <- tune.out$best.performance
-  
-  # Retrain the SVM on the full fold using the best cost value
-  fit <- svm(y ~ ., data = cv_train_set,
-             
-             kernel = 'sigmoid',
-             
-             cost = params$cost,
-             
-             gamma = params$gamma)
-  
-  # predict on the test set
-  pred <- predict(fit, newdata = cv_test_set)
-  
-  # Calculate the test error
-  sigmoidSVM.train.errors[j] <- sum(pred != cv_test_set[ ,1]) / nrow(cv_test_set)
   
   # ====================================
   #      Boosted Trees (XGBoost)
@@ -369,8 +327,9 @@ for (j in 1:k) {
     boost.train.errors[j] <- sum((y_fit > 0.5) != y[folds != j]) / length(y[folds != j])
     
     y_pred <- predict(fit, data.matrix(x[folds == j, ]))
-    boost.test.errors[j] <- sum((y_pred > 0.5) != y[folds == j]) / length(y[folds == j])
+    boost.fold.errors[j] <- sum((y_pred > 0.5) != y[folds == j]) / length(y[folds == j])
   
+    paste('Fold ',j,' complete.', sep = '')
 } # END OUTER CV LOOP
 
 # ===================================================================================
@@ -396,7 +355,7 @@ randforest_error_rate <- fit$err.rate[10000]
      naive.train.error <- mean(naive.train.errors)
  radialSVM.train.error <- mean(radialSVM.train.errors)
    polySVM.train.error <- mean(polySVM.train.errors)
-sigmoidSVM.train.error <- mean(sigmoidSVM.train.errors)
+randforest.train.error <- 0
      boost.train.error <- mean(boost.train.errors)
 
 # Compute the average validation error
@@ -406,24 +365,21 @@ sigmoidSVM.train.error <- mean(sigmoidSVM.train.errors)
      naive.cv.error <- mean(naive.fold.errors)
  radialSVM.cv.error <- mean(radialSVM.fold.errors)
    polySVM.cv.error <- mean(polySVM.fold.errors)
-sigmoidSVM.cv.error <- mean(sigmoidSVM.fold.errors)
 randforest.cv.error <- randforest_error_rate
      boost.cv.error <- mean(boost.fold.errors)
 
 # Combine the estimated train and test errors into vectors
     train.errors <- c(lasso.train.error, net.train.error, ridge.train.error, naive.train.error,
-                      radialSVM.train.error, polySVM.train.error, sigmoidSVM.train.error,
-                      randforest.train.error, boost.train.error)
+                      radialSVM.train.error, polySVM.train.error, randforest.train.error, boost.train.error)
     
 names(train.errors) <- c('Lasso','Net','Ridge', 'Naive Bayes', 'Radial SVM',
-                         'Poly. SVM', 'Sigmoid SVM', 'Random Forest', 'Boosted Trees')
+                         'Poly. SVM', 'Random Forest', 'Boosted Trees')
 
        cv.errors <- c(lasso.cv.error, net.cv.error, ridge.cv.error, naive.cv.error,
-                      radialSVM.cv.error, polySVM.cv.error, sigmoidSVM.cv.error,
-                      randforest.cv.error, boost.cv.error)
+                      radialSVM.cv.error, polySVM.cv.error, randforest.cv.error, boost.cv.error)
        
 names(cv.errors) <- c('Lasso','Net','Ridge', 'Naive Bayes', 'Radial SVM',
-                      'Poly. SVM', 'Sigmoid SVM', 'Random Forest', 'Boosted Trees')
+                      'Poly. SVM', 'Random Forest', 'Boosted Trees')
 
 # Combine the training and test errors together for comparison
           errors_matrix <- cbind(train.errors, cv.errors)
@@ -445,11 +401,18 @@ save.image('cv_results.RData')
 
 
 # Save the test predictions and the estimated test error
-save(ynew, test_error, file="18.RData")
+#save(ynew, test_error, file="18.RData")
 
 # ===================================================================================
 #                                  CLUSTERING TASK
 # ===================================================================================
+
+# Load the necessary packages for the clustering task
+require(factoextra)
+require(cluster)
+require(NbClust)
+require(dbscan)
+require(ggdendro)
 
 # Set working directory and import the data file
 setwd("C:\\Users\\SamBu\\Desktop\\STAT 639")
@@ -465,10 +428,11 @@ y.pca$x
 # Compute the proportion of variance explained (PVE)
 y.pca$sdev
 pr.var <- (y.pca$sdev)^2
-pr.var
 
 pve <- pr.var / sum(pr.var)
-round(pve, 4)
+
+# Plot the two plots side-by-side
+par(mfrow=c(1,2))
 
 # Scree plot
 plot(pve, ylim = c(0,1), type = 'b',
@@ -484,23 +448,42 @@ plot(cumsum(pve), type = 'b',
 cume.pve <- cumsum(pve)
 
 #Cut-off: 90%:187 95%:250 99%:382
-newdata <- y.pca$x[ ,1:187]
+newdata <- y.pca$x[ ,1:250]
 
 # ============================================================================
-#                         K-Means Clustering Algorithm
+#       Select K based on WSS, silhouette, and gap statistic plots
 # ============================================================================
 
-# Code that plots the total within-cluster sum of squares, silhouettes, and
-# gap statistics which can be used to choose an good number of clusters
+# WSS
+kmeans.cluster.plots <- fviz_nbclust(y, FUN = kmeans, method = "wss", k.max = 15, iter.max = 15, nstart = 15)
 
-kmean.gap <- fviz_nbclust(y, kmeans, method = "gap_stat",
-                          k.max = 25, iter.max = 50, nstart = 25)
+hclust.wss <- fviz_nbclust(y, FUN = hcut, method = "wss", k.max = 15, iter.max = 15, nstart = 15)
 
-kmean.sil <- fviz_nbclust(y, kmeans, method = "silhouette",
-                          k.max = 25, iter.max = 50, nstart = 25)
+# Silhouette
+kmean.sil <- fviz_nbclust(y, kmeans, method = "silhouette", k.max = 15, iter.max = 15, nstart = 15)
 
-kmean.wss <- fviz_nbclust(y, kmeans, method = "wss",
-                          k.max = 25, iter.max = 50, nstart = 25)
+hclust.sil <- fviz_nbclust(y, FUN = hcut, method = "silhouette", k.max = 15, iter.max = 15, nstart = 15)
+
+# Gap statistics
+kmean.gap <- fviz_nbclust(y, kmeans, method = "gap_stat", k.max = 15, iter.max = 15, nstart = 15)
+
+hclust.gap <- fviz_nbclust(y, FUN = hcut, method = "gap_stat", k.max = 15, iter.max = 15, nstart = 15)
+
+
+# Set plots to be in the same grid
+par(mfrow=c(2,3))
+
+# Plot the graphs
+kmean.wss
+hclust.wss
+kmean.sil
+hclust.sil
+kmean.gap
+hclust.gap
+
+# ============================================================================
+#                        K-Means Clustering Algorithm
+# ============================================================================
 
 # After selecting the number of clusters we will use, re-run the k-means
 km7 <- kmeans(y, centers = 7, nstart = 25)
@@ -508,14 +491,6 @@ km7 <- kmeans(y, centers = 7, nstart = 25)
 # Plot the clusters (might want to look other ways of doing this)
 fviz_cluster(km7, data = y)
 km7
-
-# ============================================================================
-#                      DBSCAN Clustering Algorithm
-# ============================================================================
-dbscan::dbscan(y,
-               eps = 1,
-               minPts = length(y) + 1)
-
 
 # ============================================================================
 #                      Hierarchical Clustering Algorithm
@@ -531,19 +506,15 @@ plot(hc.single)
 hc.average <- hclust(dist(y), method = "average")
 plot(hc.average)
 
-hclust.wss <- fviz_nbclust(y, FUN = hcut, method = "wss",
-                           k.max = 25, nstart = 25)
+# Compute hierarchical clustering and cut into 4 clusters
+#res <- hcut(USArrests, k = 4, stand = TRUE)
 
-hclust.sil <- fviz_nbclust(y, FUN = hcut, method = "silhouette",
-                           k.max = 25, nstart = 25)
+# Visualize
+#fviz_dend(res, rect = TRUE, cex = 0.5,
+          #k_colors = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"))}
 
-hclust.gap <- fviz_nbclust(y, FUN = hcut, method = "gap_stat",
-                           k.max = 25, nstart = 25)
-
-barplot(table(hc.cut))
-
-
-
+# Save the results so we don't have to keep re-running it every time
+save.image('clustering_results.RData')
 
 
 

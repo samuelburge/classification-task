@@ -11,6 +11,8 @@ k <- 10
 folds <- sample(1:k, length(y), replace = TRUE)
 boost.train.errors <- rep(0, k)
 boost.test.errors <- rep(0, k)
+
+# Create grid 
 boost.tuning.params <- cbind(fold = seq(1:k),
                              subsample = rep(0, 10),
                              max_depth = rep(0,10),
