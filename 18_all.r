@@ -300,7 +300,7 @@ for (j in 1:k) {
                           
                           nrounds = 10000,              # max number of boosting iterations
                           early_stopping_rounds = 150,  # stop boosting after x iterations with no improvement
-                          nfold = 5)
+                          nfold = k)
       
       # Store the results for each combination of tuning parameters and the associated performance
       grid_search[i, 'best_iteration'] = inner_fit$best_iteration
@@ -391,19 +391,29 @@ errors_matrix
 # Save it so when we finally it all together we don't have to do it again.
 save.image('cv_final_results.RData')
 
+foldErrors <- data.frame(boost.fold.errors,lasso.fold.errors,net.fold.errors,
+                         ridge.fold.errors,naive.fold.errors,radialSVM.fold.errors,polySVM.fold.errors)
+
+foldErrors$RForest <- randforest_error_rate
+colnames(foldErrors) <- c('Boosted Trees','Lasso','E.Net','Ridge',
+                          'N.Bayes','Radial SVM','Poly SVM','R. Forest')
+
+boxplot(foldErrors, xlab='Model',
+        ylab='CV Fold Error Rate', main='Model Comparison')
+
 # ===================================================================================
-#   Re-train the best algorithm on whole training set and compute our predictions
+#  Compute test error for the best model, refit the model, and compute predictions
 # ===================================================================================
 
-# Save the estimated test error for the output
-test_error <- boost.cv.error
+# Calculate the estimated test error
+test_error <- mean(boost.fold.errors)
 
-# Re-train the model on the entire data set
-grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
-                           max_depth = c(1, 2, 3, 4, 5),
-                           eta = seq(0.001, 0.01, 0.005),
-                           best_iteration = 0,
-                           test_error_mean = 0)
+# Re-tune the model using all the training data
+final_grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
+                                 max_depth = c(1, 2, 3, 4, 5),
+                                 eta = seq(0.001, 0.01, 0.005),
+                                 best_iteration = 0,
+                                 test_error_mean = 0)
 
 data <- xgb.DMatrix(data = as.matrix(x), label = y)
 
@@ -446,6 +456,9 @@ best_fit <- xgboost(data = data,
 
 # Generate predictions on the test set
 ynew <- predict(best_fit, data.matrix(xnew))
+
+# Converts the prediction to 0, 1 labels like the training y labels
+ynew <- as.numeric(ynew >= 0.5)
 
 # Save the test predictions and the estimated test error as specified
 save(ynew, test_error, file = "18.RData")

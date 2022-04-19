@@ -72,7 +72,6 @@ boost.tuning.params <- cbind(fold = seq(1:k),
 # ====================================================================================
 
 # Initialize vectors to store the training and estimated test error
-lasso.fold.errors <- rep(0,k)
 boost.fold.errors <- rep(0,k)
 
 # ===================================================================================
@@ -80,30 +79,6 @@ boost.fold.errors <- rep(0,k)
 # ===================================================================================
 
 for (j in 1:k) {
-  
-  # =================================================================================
-  # Fit regularized logistic regression models using L1, elastic net, and L2
-  # using the tuning parameters (alpha and lambda) that min. k-fold CV error rates
-  # =================================================================================
-  
-  # ====================================
-  #      Lasso logistic regression
-  # ====================================
-  lasso <- cv.glmnet(x[folds != j, ], y[folds != j],
-                     family = "binomial", alpha = 1, nfolds = 10,
-                     type.measure="class")
-  
-  # Error on the training set   
-  lasso.tr.pred <- predict(lasso, newx = x[folds != j, ],
-                           s = lasso$lambda.min, type = 'class')
-  
-  lasso.train.errors[j] <- mean(lasso.tr.pred != y[folds != j])
-  
-  # Error on the validation set 
-  lasso.pred <- predict(lasso, newx = x[folds == j, ],
-                        s = lasso$lambda.min, type = 'class')
-  
-  lasso.fold.errors[j] <- mean(lasso.pred != y[folds == j])
   
   # ====================================
   #      Boosted Trees (XGBoost)
@@ -126,7 +101,7 @@ for (j in 1:k) {
                         
                         nrounds = 10000,              # max number of boosting iterations
                         early_stopping_rounds = 150,  # stop boosting after x iterations with no improvement
-                        nfold = 5)
+                        nfold = k)
     
     # Store the results for each combination of tuning parameters and the associated performance
     grid_search[i, 'best_iteration'] = inner_fit$best_iteration
@@ -164,12 +139,12 @@ for (j in 1:k) {
 # Calculate the estimated test error
 test_error <- mean(boost.fold.errors)
 
-# Re-train the model on the entire data set
-grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
-                           max_depth = c(1, 2, 3, 4, 5),
-                           eta = seq(0.001, 0.01, 0.005),
-                           best_iteration = 0,
-                           test_error_mean = 0)
+# Re-tune the model using all the training data
+final_grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
+                                 max_depth = c(1, 2, 3, 4, 5),
+                                 eta = seq(0.001, 0.01, 0.005),
+                                 best_iteration = 0,
+                                 test_error_mean = 0)
 
 data <- xgb.DMatrix(data = as.matrix(x), label = y)
 
@@ -212,6 +187,9 @@ best_fit <- xgboost(data = data,
 
 # Generate predictions on the test set
 ynew <- predict(best_fit, data.matrix(xnew))
+
+# Converts the prediction to 0, 1 labels like the training y labels
+ynew <- as.numeric(ynew >= 0.5)
 
 # Save the test predictions and the estimated test error as specified
 save(ynew, test_error, file = "18.RData")

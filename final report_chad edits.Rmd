@@ -45,8 +45,15 @@ The only classifier we used that was in covered in the course was the regularize
 The results of our analysis are depicted in the table below. Note the degree to which some classifiers, such as ridge logistic regression, under-performed during the assessment despite a low training error, on average. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%.
 
 ```{r fold-errors-plot, echo = FALSE}
+foldErrors <- data.frame(boost.fold.errors,lasso.fold.errors,net.fold.errors,
+                       ridge.fold.errors,naive.fold.errors,radialSVM.fold.errors,polySVM.fold.errors)
 
-# Insert box and whiskers plot here!
+foldErrors$RForest <- randforest_error_rate
+colnames(foldErrors) <- c('Boosted Trees','Lasso','E.Net','Ridge',
+                          'N.Bayes','Radial SVM','Poly SVM','R. Forest')
+
+boxplot(foldErrors, xlab='Model',
+        ylab='CV Fold Error Rate', main='Model Comparison')
 
 ```
 
