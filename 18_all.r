@@ -53,12 +53,20 @@ cost_grid <- seq(0.01, 100, length.out = 15)  # cost for all kernels
 gamma_grid <- seq(0, 1, length.out = 15)      # gamma for all kernels
 degree_grid <- seq(1, 5)                      # degrees for polynomial kernel
 
-# 
+# Grid search for the best parameters for the boosted trees
 grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
                            max_depth = c(1, 2, 3, 4, 5),
                            eta = seq(0.001, 0.01, 0.005),
                            best_iteration = 0,
                            test_error_mean = 0)
+
+# Storage for the best parameters of each boosted tree in each fold
+boost.tuning.params <- cbind(fold = seq(1:k),
+                             subsample = rep(0, 10),
+                             max_depth = rep(0,10),
+                             eta = rep(0, 10),
+                             nrounds = rep(0, 10))
+
 
 # Coerce data vector to matrix, calculate training sample size, and create folds
 n <- nrow(x)
@@ -389,7 +397,6 @@ randforest_error_rate <- fit$err.rate[10000]
  radialSVM.train.error <- mean(radialSVM.train.errors)
    polySVM.train.error <- mean(polySVM.train.errors)
 sigmoidSVM.train.error <- mean(sigmoidSVM.train.errors)
-randforest.train.error <- mean(randforest.train.errors)
      boost.train.error <- mean(boost.train.errors)
 
 # Compute the average validation error
@@ -400,7 +407,7 @@ randforest.train.error <- mean(randforest.train.errors)
  radialSVM.cv.error <- mean(radialSVM.fold.errors)
    polySVM.cv.error <- mean(polySVM.fold.errors)
 sigmoidSVM.cv.error <- mean(sigmoidSVM.fold.errors)
-randforest.cv.error <- mean(randforest.fold.errors)
+randforest.cv.error <- randforest_error_rate
      boost.cv.error <- mean(boost.fold.errors)
 
 # Combine the estimated train and test errors into vectors
@@ -434,7 +441,7 @@ save.image('cv_results.RData')
 
 # Re-train the model on the entire data set
 
-
+# ...
 
 
 # Save the test predictions and the estimated test error
