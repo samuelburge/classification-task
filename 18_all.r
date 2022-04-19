@@ -395,12 +395,60 @@ save.image('cv_final_results.RData')
 #   Re-train the best algorithm on whole training set and compute our predictions
 # ===================================================================================
 
+# Save the estimated test error for the output
+test_error <- boost.cv.error
+
 # Re-train the model on the entire data set
+grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
+                           max_depth = c(1, 2, 3, 4, 5),
+                           eta = seq(0.001, 0.01, 0.005),
+                           best_iteration = 0,
+                           test_error_mean = 0)
 
-# ...
+data <- xgb.DMatrix(data = as.matrix(x), label = y)
 
-# Save the test predictions and the estimated test error
-#save(ynew, test_error, file="18.RData")
+for (i in 1:nrow(grid_search)) {
+  inner_fit <- xgb.cv(data = data,
+                      objective = "binary:logistic",  # "binary:logistic" for logistic regression
+                      metrics = c('error'),
+                      
+                      params = list(booster = 'gbtree',
+                                    subsample = grid_search[i, 'subsample'],
+                                    eta = grid_search[i, 'eta'],
+                                    max_depth = grid_search[i, 'max_depth']),
+                      
+                      nrounds = 10000,              # max number of boosting iterations
+                      early_stopping_rounds = 150,  # stop boosting after x iterations with no improvement
+                      nfold = 5)
+  
+  # Store the results for each combination of tuning parameters and the associated performance
+  grid_search[i, 'best_iteration'] = inner_fit$best_iteration
+  grid_search[i, 'test_error_mean'] = inner_fit$evaluation_log[inner_fit$best_iteration, 'test_error_mean']
+}
+
+# Identify the best tuning parameters
+boost.tuning.params[j, 'subsample'] <- grid_search[which.min(grid_search$test_error_mean), 'subsample']
+boost.tuning.params[j, 'eta'] <- grid_search[which.min(grid_search$test_error_mean), 'eta']
+boost.tuning.params[j, 'max_depth'] <- grid_search[which.min(grid_search$test_error_mean), 'max_depth']
+boost.tuning.params[j, 'nrounds'] <- grid_search[which.min(grid_search$test_error_mean), 'best_iteration']
+
+# Fit the data with the best tuning parameters 
+best_fit <- xgboost(data = data,
+                    objective = "binary:logistic",  # "binary:logistic" for logistic regression
+                    metrics = c('error'),
+                    
+                    params = list(booster = 'gbtree',
+                                  subsample = boost.tuning.params[j, 'subsample'],
+                                  eta = boost.tuning.params[j, 'eta'],
+                                  max_depth = boost.tuning.params[j, 'max_depth']),
+                    
+                    nrounds = boost.tuning.params[j, 'nrounds'])
+
+# Generate predictions on the test set
+ynew <- predict(best_fit, data.matrix(xnew))
+
+# Save the test predictions and the estimated test error as specified
+save(ynew, test_error, file = "18.RData")
 
 # ===================================================================================
 #                                  CLUSTERING TASK
