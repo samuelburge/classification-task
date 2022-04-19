@@ -72,3 +72,5 @@ for (i in (1:k)) {
 print(cbind(1:5, train_err, test_err))
 cv_score <- mean(test_err)
 paste("The CV score is:", round(cv_score, 4))
+
+save.image("svm_radial.RData")

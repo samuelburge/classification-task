@@ -35,32 +35,31 @@ options(knitr.table.format = "latex")
 # Classification Task
 
 ## Methodology
+
 For the classification task we approached the problem with a spread of well-known classification algorithms. This included the Naive Bayes classifier, regularized logistic regression (specifically ridge, lasso and elastic net regularization), gradient boosted trees, random forests and support vector machines (using radial and polynomial kernels). For model selection and assessment, we utilized 10-fold cross-validation and, with some algorithms, another nested cross-validation to select tuning hyper-parameter using a grid search. Nested cross-validation is a well-known approach to handling both tuning and assessment of models with hyper-parameters, and we opted to employ this approach to avoid potential over-fitting and bias introduced when the same data used to validate the models is also included in hyper-parameter optimization [@cawley].
 
-### Logistic Regression
-We first verified that our assumptions, which validates logistic regression as a methodology, were satisfied. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie].
+### Regularized Logistic Regression
 
-```{r cars, echo=FALSE}
-firstColumn <- c(0.3201453,0.3201453,0.2016434,0.3783479)
-secondColumn <-c(0.3509644,0.3862684,0.4178184,0.4081633)
-logisticConfusionMatrix <- data.frame(firstColumn,secondColumn)
-colnames(logisticConfusionMatrix) <- c('Training Error','Test Error')
-row.names(logisticConfusionMatrix) <- c('Lasso','Net','Ridge','Naive Bayes')
-print(logisticConfusionMatrix)
+We first verified that our assumptions, which validates logistic regression as a methodology, were satisfied. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. The elastic net regularization simply uses the penalty term
+
+$$ \lambda \Big(\ (1 - \alpha)\ || \beta ||^2_2\ /\ 2 + \alpha || \beta ||_1 \Big)$$
+in the objective function, and requires that both tuning parameters $\lambda$ and $\alpha$ be selected (which we used nested cross-validation to determine). The lasso and ridge regularization can be viewed as special cases of the elastic net procedure where $\alpha = 1$ and $\alpha = 0$, respectively. We searched for the best tuning parameters $0 \le \alpha \le 1$ in increments of 0.05 and found that lasso regularization yielded the best performance in this category of classifiers.
+
+## Results
+
+The results of our analysis are depicted in the table below. Note the degree to which some classifiers, such as ridge logistic regression, under-performed during the assessment despite a low training error, on average. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%.
+
+```{r fold-errors-plot, echo = FALSE}
+#ggplot(data = cv_data, aes(x = fold, y = fold.errors, color = method)) +
+  #geom_line() +
+  #xlab('Cross-validation Fold') +
+  #ylab('Misclassification Rate') +
+  #theme_classic()
 ```
 
-The results of our analysis are depicted in the table above. Note the degree to which ridge logistic regression under-performed during the assessment despite a low training error. This is likely over-fitting, and we attribute this to high excess variance in the data set compared to bias. The lasso and elastic net eliminate this variance by performing variable selection to eliminate predictors.
-
-### Boosted Trees
-Boosted classification trees yielded the best results of all the algorithms we employed. In order to generate our results we used nested cross-validation method to perform a grid search over various shrinkage rates, bag inclusion, and interaction depths. We then compared the models with a withheld validation set. We found that as is common with validation set approaches there was significant variance in the accuracy of the model with respect to the validation set. In order to identify higher performing models we resampled repeatedly and fed the data into the cross validation trees algorithm and measured against a corresponding validation set. We chose our model manually using a slight bias toward models which were simpler and had less variance.
-
-## Results  
-We can put a description of the results, like a table of the average training and cross-validation errors, in this section. I was also thinking we could include ROC curves.  
-\  
-
-```{r results-table, echo = FALSE, }
+```{r results-table, echo = FALSE}
 errors.matrix <- cbind(train.errors, cv.errors)
-colnames(errors.matrix) <- c('Train Error', 'Est. Test Error')
+colnames(errors.matrix) <- c('Train Error', 'Estimated Test Error')
 
 kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
       col.names = c('Training Error', 'Est. Test Error'),
@@ -68,6 +67,7 @@ kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
   column_spec(1, bold = TRUE) %>%
   column_spec(2:7, width = "2in", )
 ```
+
 
 
 # Clustering Task
@@ -85,10 +85,10 @@ load("cluster_data.RData")
 ```
 
 ## Pre-processing
+
 For the clustering task, we initially looked at performing principal components analysis (PCA) to reduce the number of dimensions in the data set. The two scree plots below show that the number of principal components necessary to capture at least 90% of the variation in the data set was about 187, which did not seem beneficial enough to consider for the analysis. Therefore, we decided to retain all the original features in the data set.
 
 ```{r pca, echo=FALSE}
-
 # Calculate the principal components
 y.pca <- prcomp(y, scale = TRUE, center = TRUE)
 
