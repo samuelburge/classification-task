@@ -25,6 +25,7 @@ require(factoextra)
 require(cluster)
 require(NbClust)
 require(dbscan)
+require(ggdendro)
 
 # ====================================================================================
 #                                CLASSIFICATION TASK
@@ -51,6 +52,13 @@ dataset <- data.frame(y = as.factor(y), scaled_x)
 cost_grid <- seq(0.01, 100, length.out = 15)  # cost for all kernels
 gamma_grid <- seq(0, 1, length.out = 15)      # gamma for all kernels
 degree_grid <- seq(1, 5)                      # degrees for polynomial kernel
+
+# 
+grid_search <- expand.grid(subsample = seq(from = 0.5, to = 1, by = 0.1),
+                           max_depth = c(1, 2, 3, 4, 5),
+                           eta = seq(0.001, 0.01, 0.005),
+                           best_iteration = 0,
+                           test_error_mean = 0)
 
 # Coerce data vector to matrix, calculate training sample size, and create folds
 n <- nrow(x)
@@ -86,7 +94,7 @@ boost.fold.errors <- rep(0,k)
 #                           K-fold cross validation loop
 # ===================================================================================
 
-for (j in 1:1) {
+for (j in 1:k) {
 
   # =================================================================================
   # Fit regularized logistic regression models using L1, elastic net, and L2
@@ -306,11 +314,56 @@ for (j in 1:1) {
   sigmoidSVM.train.errors[j] <- sum(pred != cv_test_set[ ,1]) / nrow(cv_test_set)
   
   # ====================================
-  #          Boosted Trees
+  #      Boosted Trees (XGBoost)
   # ====================================
+
+    # Convert the training and test sets of each fold into a data matrix (DMatrix)
+    train <- xgb.DMatrix(data = as.matrix(x[folds != j, ]), label = y[folds != j])
+    test <- xgb.DMatrix(data = as.matrix(x[folds == j, ]), label = y[folds == j])
+    best_iteration <- rep(0, nrow(grid_search))
+    
+    for (i in 1:nrow(grid_search)) {
+      inner_fit <- xgb.cv(data = train,
+                          objective = "binary:logistic",  # "binary:logistic" for logistic regression
+                          metrics = c('error'),
+                          
+                          params = list(booster = 'gbtree',
+                                        subsample = grid_search[i, 'subsample'],
+                                        eta = grid_search[i, 'eta'],
+                                        max_depth = grid_search[i, 'max_depth']),
+                          
+                          nrounds = 10000,              # max number of boosting iterations
+                          early_stopping_rounds = 150,  # stop boosting after x iterations with no improvement
+                          nfold = 5)
+      
+      # Store the results for each combination of tuning parameters and the associated performance
+      grid_search[i, 'best_iteration'] = inner_fit$best_iteration
+      grid_search[i, 'test_error_mean'] = inner_fit$evaluation_log[inner_fit$best_iteration, 'test_error_mean']
+    }
+    
+    boost.tuning.params[j, 'subsample'] <- grid_search[which.min(grid_search$test_error_mean), 'subsample']
+    boost.tuning.params[j, 'eta'] <- grid_search[which.min(grid_search$test_error_mean), 'eta']
+    boost.tuning.params[j, 'max_depth'] <- grid_search[which.min(grid_search$test_error_mean), 'max_depth']
+    boost.tuning.params[j, 'nrounds'] <- grid_search[which.min(grid_search$test_error_mean), 'best_iteration']
+    
+    fit <- xgboost(data = train,
+                   objective = "binary:logistic",  # "binary:logistic" for logistic regression
+                   metrics = c('error'),
+                   
+                   params = list(booster = 'gbtree',
+                                 subsample = boost.tuning.params[j, 'subsample'],
+                                 eta = boost.tuning.params[j, 'eta'],
+                                 max_depth = boost.tuning.params[j, 'max_depth']),
+                   
+                   nrounds = boost.tuning.params[j, 'nrounds']) 
+    
+    y_fit <- predict(fit, data.matrix(x[folds != j, ]))
+    boost.train.errors[j] <- sum((y_fit > 0.5) != y[folds != j]) / length(y[folds != j])
+    
+    y_pred <- predict(fit, data.matrix(x[folds == j, ]))
+    boost.test.errors[j] <- sum((y_pred > 0.5) != y[folds == j]) / length(y[folds == j])
   
-  
-}
+} # END OUTER CV LOOP
 
 # ===================================================================================
 #      Random forest doesn't need to be cross-validated (will use OOB error)
@@ -322,33 +375,33 @@ fit <- randomForest(y = dataset[, 1],
                     ntree = 10000)
 
 # Calculate the training error rate
-oob_error_rate <- fit$err.rate[10000]
+randforest_error_rate <- fit$err.rate[10000]
 
 # ===================================================================================
 #        Compute the CV error for each algorithm and compare the results
 # ===================================================================================
 
 # Compute the average training error
-     lasso.train.error <- sum(lasso.train.errors) / k
-       net.train.error <- sum(net.train.errors) / k
-     ridge.train.error <- sum(ridge.train.errors) / k
-     naive.train.error <- sum(naive.train.errors) / k
- radialSVM.train.error <- sum(radialSVM.train.errors) / k
-   polySVM.train.error <- sum(polySVM.train.errors) / k
-sigmoidSVM.train.error <- sum(sigmoidSVM.train.errors) / k
-randforest.train.error <- sum(randforest.train.errors) / k
-     boost.train.error <- sum(boost.train.errors) / k
+     lasso.train.error <- mean(lasso.train.errors)
+       net.train.error <- mean(net.train.errors)
+     ridge.train.error <- mean(ridge.train.errors)
+     naive.train.error <- mean(naive.train.errors)
+ radialSVM.train.error <- mean(radialSVM.train.errors)
+   polySVM.train.error <- mean(polySVM.train.errors)
+sigmoidSVM.train.error <- mean(sigmoidSVM.train.errors)
+randforest.train.error <- mean(randforest.train.errors)
+     boost.train.error <- mean(boost.train.errors)
 
 # Compute the average validation error
-     lasso.cv.error <- sum(lasso.fold.errors) / k 
-       net.cv.error <- sum(net.fold.errors) / k
-     ridge.cv.error <- sum(ridge.fold.errors) / k
-     naive.cv.error <- sum(naive.fold.errors) / k
- radialSVM.cv.error <- sum(radialSVM.fold.errors) / k
-   polySVM.cv.error <- sum(polySVM.fold.errors) / k
-sigmoidSVM.cv.error <- sum(sigmoidSVM.fold.errors) / k
-randforest.cv.error <- sum(randforest.fold.errors) / k
-     boost.cv.error <- sum(boost.fold.errors) / k
+     lasso.cv.error <- mean(lasso.fold.errors)
+       net.cv.error <- mean(net.fold.errors)
+     ridge.cv.error <- mean(ridge.fold.errors)
+     naive.cv.error <- mean(naive.fold.errors)
+ radialSVM.cv.error <- mean(radialSVM.fold.errors)
+   polySVM.cv.error <- mean(polySVM.fold.errors)
+sigmoidSVM.cv.error <- mean(sigmoidSVM.fold.errors)
+randforest.cv.error <- mean(randforest.fold.errors)
+     boost.cv.error <- mean(boost.fold.errors)
 
 # Combine the estimated train and test errors into vectors
     train.errors <- c(lasso.train.error, net.train.error, ridge.train.error, naive.train.error,
@@ -373,8 +426,19 @@ colnames(errors_matrix) <- c("Avg. Training Error","Est. Test Error")
 errors_matrix
 
 # Save it so when we finally it all together we don't have to do it again.
-save.image('results.RData')
+save.image('cv_results.RData')
 
+# ===================================================================================
+#   Re-train the best algorithm on whole training set and compute our predictions
+# ===================================================================================
+
+# Re-train the model on the entire data set
+
+
+
+
+# Save the test predictions and the estimated test error
+save(ynew, test_error, file="18.RData")
 
 # ===================================================================================
 #                                  CLUSTERING TASK
@@ -437,6 +501,14 @@ km7 <- kmeans(y, centers = 7, nstart = 25)
 # Plot the clusters (might want to look other ways of doing this)
 fviz_cluster(km7, data = y)
 km7
+
+# ============================================================================
+#                      DBSCAN Clustering Algorithm
+# ============================================================================
+dbscan::dbscan(y,
+               eps = 1,
+               minPts = length(y) + 1)
+
 
 # ============================================================================
 #                      Hierarchical Clustering Algorithm

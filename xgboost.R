@@ -79,6 +79,6 @@ boost.train.errors
 boost.test.errors
 
 boost.train.error <- mean(boost.train.errors)
-boost.cv.error <- mean(test_err)
+boost.cv.error <- mean(boost.test.errors)
 
 save.image('xgboost.RData')
