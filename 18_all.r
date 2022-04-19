@@ -490,7 +490,7 @@ km7 <- kmeans(y, centers = 7, nstart = 25)
 
 # Plot the clusters (might want to look other ways of doing this)
 fviz_cluster(km7, data = y)
-km7
+km7$cluster
 
 # ============================================================================
 #                      Hierarchical Clustering Algorithm
@@ -506,6 +506,8 @@ plot(hc.single)
 hc.average <- hclust(dist(y), method = "average")
 plot(hc.average)
 
+hcut7 <- cutree(hc.complete, 7)
+
 # Compute hierarchical clustering and cut into 4 clusters
 #res <- hcut(USArrests, k = 4, stand = TRUE)
 
@@ -518,6 +520,8 @@ save.image('clustering_results.RData')
 
 
 
-
+# Bar graph of cluster placements
+bar.kmeans <- barplot(table(km7$cluster))
+bar.hierarch <- barplot(table(hcut7))
 
 
