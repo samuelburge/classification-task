@@ -36,15 +36,15 @@ options(knitr.table.format = "latex")
 
 ## Methodology
 
-For the classification task we approached the problem with a spread of well-known classification algorithms. This included the Naive Bayes classifier, regularized logistic regression (specifically ridge, lasso and elastic net regularization), gradient boosted trees, random forests and support vector machines (using radial and polynomial kernels). For model selection and assessment, we utilized 10-fold cross-validation and, with some algorithms, another nested cross-validation to select tuning hyper-parameter using a grid search. Nested cross-validation is a well-known approach to handling both tuning and assessment of models with hyper-parameters, and we opted to employ this approach to avoid potential over-fitting and bias introduced when the same data used to validate the models is also included in hyper-parameter optimization [@cawley].
+For the classification task we used the Naive Bayes classifier, regularized logistic regression (specifically ridge, lasso and elastic net regularization), gradient boosted trees, random forests and support vector machines (using radial and polynomial kernels). For model selection and assessment, we utilized 10-fold cross-validation and, with some algorithms, another nested cross-validation to select tuning hyper-parameter using a grid search. Nested cross-validation is a well-known approach to handling both tuning and assessment of models with hyper-parameters, and we opted to employ this approach to avoid potential over-fitting and bias introduced when the same data used to validate the models is also included in hyper-parameter optimization [@cawley].
 
-The only classifier we used that was in covered in the course was the regularized version of the logistic regression model. Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated suggesting the best linear method might be logistic regression. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. We also opted to use a different boosting algorithm for the classification trees, XGBoost, compared to the algorithms found in R's gbm package. This was primarily due to the computational resources necessary to perform nested cross-validations, as XGBoost is known for it's impressive predictive performance and computational efficiency [@xgboost]. 
+Before the analysis we created large plot matrices and verified across all predictors that $X$ and $Y$ were not well separated suggesting the best linear method might be logistic regression. However, we were not able to fit a logistic regression model outright since $p > n$. We utilized regularization methods to reduce the features in our analysis using lasso, ridge, and elastic net regularization methods [@hastie]. We also opted to use a different boosting algorithm for the classification trees, XGBoost, compared to the algorithms found in R's gbm package. This was primarily due to the computational resources necessary to perform nested cross-validations, as XGBoost is known for it's impressive predictive performance and computational efficiency [@xgboost]. 
 
 ## Results
 
-The results of our analysis are depicted in the table below. Note the degree to which some classifiers, such as ridge logistic regression, under-performed during the assessment despite a low training error, on average. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%. After re-fitting the final model using the same grid search procedure, our model's tuning parameters were an 80% subsample ratio the training instances, a learning rate (shrinkage penalty) of 0.001 ,and a max interaction depth for each tree of 4. These tuning parameters were selected primarily to help us avoid over-fitting the model given the large amount of flexibility these algorithms can provide if left unchecked.
+The results of our analysis are depicted in the table below. Overall, the tree-based methods had the best performance of all the classifiers and the boosted classification trees had the best generalization performance with a CV error rate of `r round(boost.cv.error, 2)*100`%. After re-fitting the final model using the same grid search procedure, our model's tuning parameters were an 80% subsample ratio the training instances, a learning rate (shrinkage penalty) of 0.001 ,and a max interaction depth for each tree of 4. These tuning parameters were selected primarily to help us avoid over-fitting the model given the large amount of flexibility these algorithms can provide if left unchecked, although the interaction depth was deeper than we expected, which could suggest that there are some interactions between the variables in the data.
 
-```{r fold-errors-plot, echo = FALSE}
+```{r fold-errors-plot, echo = FALSE, out.height='40%', include = FALSE}
 foldErrors <- data.frame(boost.fold.errors,lasso.fold.errors,net.fold.errors,
                        ridge.fold.errors,naive.fold.errors,radialSVM.fold.errors,polySVM.fold.errors)
 
@@ -57,11 +57,11 @@ boxplot(foldErrors, xlab='Model',
 
 ```
 
-```{r results-table, echo = FALSE}
+```{r results-table, echo = FALSE, out.height='40%', fig.align ='center'}
 errors.matrix <- round(cbind(train.errors, cv.errors), 2)
 colnames(errors.matrix) <- c('Train Error', 'Estimated Test Error')
 
-kableExtra::kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', 'c'),
+kableExtra::kable(round(cbind(train.errors, cv.errors),2), booktabs = T, align = c('c', 'c'),
       col.names = c('Training Error', 'Est. Test Error'),
       caption = "Results from 10-fold cross-validation to assess model generalization performance.") %>%
   kable_styling(latex_options = 'hold_position') %>%
@@ -74,6 +74,7 @@ kableExtra::kable(cbind(train.errors, cv.errors), booktabs = T, align = c('c', '
 ```{r clustering-setup, echo=FALSE, message=FALSE, include=FALSE}
 # Load the necessary packages for the clustering task
 require(factoextra)
+require(gridExtra)
 require(cluster)
 require(NbClust)
 require(dbscan)
@@ -81,13 +82,14 @@ require(ggdendro)
 
 # Set working directory and import the data file
 load("cluster_data.RData")
+load('clusterCharts.RData')
 ```
 
 ## Pre-processing
 
 For the clustering task, we initially looked at performing principal components analysis (PCA) to reduce the number of dimensions in the data set. The two scree plots below show that the number of principal components necessary to capture at least 90% of the variation in the data set was about 187, which did not seem beneficial enough to consider for the analysis. Therefore, we decided to retain all the original features in the data set.
 
-```{r pca, echo=FALSE}
+```{r pca, echo=FALSE, out.height='30%', fig.align ='center', fig.cap='Scree plots from PCA analysis.'}
 # Calculate the principal components
 y.pca <- prcomp(y, scale = TRUE, center = TRUE)
 
@@ -116,18 +118,29 @@ plot(cumsum(pve), type = 'l', col = 'blue',
 
 We opted to use k-means and hierarchical clustering, in part because the high-dimensional data is intractable with DBSCAN and due to computing restraints. Since the given data does not have any contextual basis for selecting the number of clusters $K$, we need one or more criteria to determine the number of clusters. Several well-known and widely used approaches include the elbow method, the silhouette method [@rousseeuw], and more recently the use of the gap statistic [@tibshirani].
 
-```{r k_selection_plots, echo = FALSE}
+```{r k_selection_plots, echo = FALSE, out.height='50%'}
 # Specify how the plots will be output
-par(mfrow=c(2,3))
-
-# Insert wss, silhouette, and gap statistic plots here!
-
+grid.arrange(kmean.sil + ylab("Avg. Silhouette") + ggtitle("") + xlab("") +
+               ggtitle("Opt. Number of Clusters"),
+             
+             hclust.sil + ylab("") + ggtitle("") + xlab("") +
+               ggtitle("Opt. Number of Clusters"),
+             
+             kmean.gap + ylab("Gap statistic") + ggtitle(""), 
+             
+             hclust.gap + ylab("") + ggtitle(""),
+             nrow = 3, ncol = 2)
 ```
 
-```{r final_cluster_barplots, echo = FALSE}
+```{r final_cluster_barplots, echo = FALSE, out.height = '50%'}
 
-# Insert bar plots of the groupings here!
+par(mfrow=c(1,2))
 
+barplot(table(km7$cluster), 
+          main='Distribution of K-Means Clusters', ylab="Frequency", xlab="Cluster")
+
+barplot(table(hcut7),
+          main='Distribution of Hierarchical Clusters', ylab="Frequency", xlab="Cluster")
 ```
 
 # References

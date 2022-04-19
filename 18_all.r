@@ -482,6 +482,7 @@ require(ggdendro)
 # Set working directory and import the data file
 setwd("C:\\Users\\SamBu\\Desktop\\STAT 639")
 load("cluster_data.RData")
+load('clusterCharts.RData')
 
 # ============================================================================
 #                Principal component analysis of the data set
@@ -545,6 +546,8 @@ kmean.sil
 hclust.sil
 kmean.gap
 hclust.gap
+bar.kmeans
+bar.hierarch
 
 # ============================================================================
 #                        K-Means Clustering Algorithm
@@ -563,32 +566,29 @@ km7$cluster
 
 # Use the original data
 hc.complete <- hclust(dist(y), method = "complete")
-plt <- plot(hc.complete, labels = FALSE)
-
-hc.single <- hclust(dist(y), method = "single")
-plot(hc.single)
-
-hc.average <- hclust(dist(y), method = "average")
-plot(hc.average)
 
 hcut7 <- cutree(hc.complete, 7)
-
-# Compute hierarchical clustering and cut into 4 clusters
-#res <- hcut(USArrests, k = 4, stand = TRUE)
-
-# Visualize
-#fviz_dend(res, rect = TRUE, cex = 0.5,
-          #k_colors = c("#00AFBB","#2E9FDF", "#E7B800", "#FC4E07"))}
-
-# Save the results so we don't have to keep re-running it every time
-save.image('clustering_results.RData')
-
-
 
 # Bar graph of cluster placements
 bar.kmeans <- barplot(table(km7$cluster), 
           main='Distribution of K-Means Clusters', ylab="Frequency", xlab="Cluster")
+
 bar.hierarch <- barplot(table(hcut7),
           main='Distribution of Hierarchical Clusters', ylab="Frequency", xlab="Cluster")
+
+# Save the results so we don't have to keep re-running it every time
+save.image('clustering_results.RData')
+
+save(kmean.wss,
+hclust.wss,
+kmean.sil,
+hclust.sil,
+kmean.gap,
+hclust.gap,
+bar.kmeans,
+bar.hierarch,
+km7,
+hcut7,
+file = 'clusterCharts.RData')
 
 
