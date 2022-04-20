@@ -1,8 +1,11 @@
 ---
 title: \vspace{-0.75cm} Final Project Report \vspace{-0.5cm} 
-subtitle: "STAT 639-700"
-author: "Samuel Burge, Chad Austgen (UIN: ), Skylar Liu (UIN: 727007397)"
-date: "April 19, 2022"
+subtitle: |
+  | STAT 639-700
+  | Samuel Burge (UIN: 331008088)
+  | Chad Austgen (UIN: 727007397)
+  | Skylar Liu (UIN: 727007397)
+  | April 19, 2022
 output: pdf_document
 header-includes:
     - \usepackage{setspace}\doublespacing
@@ -86,7 +89,7 @@ load('clusterCharts.RData')
 
 For the clustering task, we initially looked at performing principal components analysis (PCA) to reduce the number of dimensions in the data set. The two scree plots below show that the number of principal components necessary to capture at least 90% of the variation in the data set was about 187, which did not seem beneficial enough to consider for the analysis. Therefore, we decided to retain all the original features in the data set.
 
-```{r pca, echo=FALSE, out.height='30%', fig.align ='center', fig.cap='Scree plots from PCA analysis.'}
+```{r pca, echo=FALSE, fig.height=2.5, fig.width=7, include = FALSE, fig.align ='center', fig.cap='Scree plots from PCA analysis.'}
 # Calculate the principal components
 y.pca <- prcomp(y, scale = TRUE, center = TRUE)
 
@@ -103,7 +106,7 @@ par(mfrow=c(1,2))
 # Scree plot
 plot(pve, ylim = c(0,1), type = 'l', col = 'blue',
      xlab = "Principal Component",
-     ylab = "Proportion of Variance Explained")
+     ylab = "PVE")
 
 # Cumulative scree plot
 plot(cumsum(pve), type = 'l', col = 'blue',
@@ -111,9 +114,10 @@ plot(cumsum(pve), type = 'l', col = 'blue',
      ylab=NA)
 ```
 
-We opted to use k-means and hierarchical clustering, in part because the high-dimensional data is intractable with DBSCAN and due to computing restraints. Since the given data does not have any contextual basis for selecting the number of clusters $K$, we need one or more criteria to determine the number of clusters. Several well-known and widely used approaches include the elbow method, the silhouette method [@rousseeuw], and more recently the use of the gap statistic [@tibshirani].
+We opted to use k-means and hierarchical clustering, in part because the high-dimensional data is intractable with DBSCAN and due to computing restraints. Since the given data does not have any contextual basis for selecting the number of clusters $K$, we used several widely used approaches include the elbow method, the silhouette method [@rousseeuw], and more recently the use of the gap statistic [@tibshirani]. We decided on $K = 7$.
+\ 
 
-```{r k_selection_plots, echo = FALSE, out.height='40%', fig.align='center', message=FALSE, echo=FALSE, error=FALSE, fig.caption='Silhouette and gap statistic plots for determining K clusters.'}
+```{r gap-plots, fig.width = 7, fig.height = 4, echo = FALSE, error = FALSE, message = FALSE}
 # Specify how the plots will be output
 grid.arrange(kmean.sil + ylab("Avg. Silhouette") + ggtitle("") + xlab("") +
                ggtitle("Opt. Number of Clusters") + scale_x_discrete(breaks = ""),
@@ -121,13 +125,17 @@ grid.arrange(kmean.sil + ylab("Avg. Silhouette") + ggtitle("") + xlab("") +
              hclust.sil + ylab("") + ggtitle("") + xlab("") +
                ggtitle("Opt. Number of Clusters") + scale_x_discrete() +  scale_x_discrete(breaks = ""),
              
-             kmean.gap + ylab("Gap statistic") + ggtitle("") + scale_x_discrete(breaks = c(1,3,5,7,9,11,13, 15)), 
+             kmean.gap + ylab("Gap statistic") + ggtitle("") +
+               scale_x_discrete(breaks = c(1,3,5,7,9,11,13, 15)), 
              
-             hclust.gap + ylab("") + ggtitle("") + scale_x_discrete(breaks = c(1,3,5,7,9,11,13, 15)),
+             hclust.gap + ylab("") + ggtitle("") +
+               scale_x_discrete(breaks = c(1,3,5,7,9,11,13, 15)),
+             
              nrow = 3, ncol = 2)
 ```
 
-```{r final_cluster_barplots, echo = FALSE, out.height = '30%', fig.align='center', fig.cap='Count of observations in each cluster for both methods.'}
+The graphs suggested possibly using 14, but we ultimately decided on 7 which is easier to interpret. The results of the K-means and hierarchical clustering methods are depicted in the bar graphs below. K-Means grouped the data into relatively equal sized clusters, with cluster 5 having slightly more observations. Hierarchical clustering resulted in the majority of our data falling into cluster 2, which was consistent with the dendrogram for complete linkage hierarchical cluster. Because of the difficulty visualzing data in high dimensions in the data, we plotted bar graphs of the clusters from both methods.
+```{r final_cluster_barplots, echo = FALSE, fig.height=4, fig.width=7, fig.align='center', fig.cap='Count of observations in each cluster for both clustering methods.'}
 par(mfrow=c(1,2))
 
 barplot(table(km7$cluster), 
@@ -136,6 +144,5 @@ barplot(table(km7$cluster),
 barplot(table(hcut7),
           main='Distribution of Hierarchical Clusters', ylab="Frequency", xlab="Cluster")
 ```
-
-# References
 \footnotesize
+

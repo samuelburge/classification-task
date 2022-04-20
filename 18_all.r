@@ -480,7 +480,6 @@ require(dbscan)
 require(ggdendro)
 
 # Set working directory and import the data file
-setwd("C:\\Users\\SamBu\\Desktop\\STAT 639")
 load("cluster_data.RData")
 load('clusterCharts.RData')
 
@@ -521,18 +520,24 @@ newdata <- y.pca$x[ ,1:250]
 # ============================================================================
 
 # WSS
+set.seed(639)
 kmeans.cluster.plots <- fviz_nbclust(y, FUN = kmeans, method = "wss", k.max = 15, iter.max = 15, nstart = 15)
 
+set.seed(639)
 hclust.wss <- fviz_nbclust(y, FUN = hcut, method = "wss", k.max = 15, iter.max = 15, nstart = 15)
 
 # Silhouette
+set.seed(639)
 kmean.sil <- fviz_nbclust(y, kmeans, method = "silhouette", k.max = 15, iter.max = 15, nstart = 15)
 
+set.seed(639)
 hclust.sil <- fviz_nbclust(y, FUN = hcut, method = "silhouette", k.max = 15, iter.max = 15, nstart = 15)
 
 # Gap statistics
+set.seed(639)
 kmean.gap <- fviz_nbclust(y, kmeans, method = "gap_stat", k.max = 15, iter.max = 15, nstart = 15)
 
+set.seed(639)
 hclust.gap <- fviz_nbclust(y, FUN = hcut, method = "gap_stat", k.max = 15, iter.max = 15, nstart = 15)
 
 
@@ -553,10 +558,13 @@ bar.hierarch
 #                        K-Means Clustering Algorithm
 # ============================================================================
 
+
 # After selecting the number of clusters we will use, re-run the k-means
+set.seed(639)
 km7 <- kmeans(y, centers = 7, nstart = 25)
 
 # Plot the clusters (might want to look other ways of doing this)
+set.seed(639)
 fviz_cluster(km7, data = y)
 km7$cluster
 
@@ -565,14 +573,18 @@ km7$cluster
 # ============================================================================
 
 # Use the original data
+set.seed(639)
 hc.complete <- hclust(dist(y), method = "complete")
 
+set.seed(639)
 hcut7 <- cutree(hc.complete, 7)
 
 # Bar graph of cluster placements
+set.seed(639)
 bar.kmeans <- barplot(table(km7$cluster), 
           main='Distribution of K-Means Clusters', ylab="Frequency", xlab="Cluster")
 
+set.seed(639)
 bar.hierarch <- barplot(table(hcut7),
           main='Distribution of Hierarchical Clusters', ylab="Frequency", xlab="Cluster")
 
